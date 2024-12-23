@@ -1,14 +1,12 @@
 import pytest
 from main import app
 
+# Fixture to initialize client and reset state
 @pytest.fixture
 def client():
     with app.test_client() as client:
-        # Reset the to-do list before each test (optional, depends on your app's logic)
-        app.config['TESTING'] = True
+        app.todos = []  # Reset to-do list before each test
         yield client
-        # Clear to-do list after each test (if necessary)
-        app.todos = []  # Reset the to-do list (this depends on how your app stores it)
 
 def test_add_todo(client):
     response = client.post('/todos', json={'todo': 'Learn Flask'})
@@ -16,10 +14,13 @@ def test_add_todo(client):
     assert response.json['message'] == 'Todo added'
 
 def test_get_todos(client):
+    # Delete any existing todos before adding a new one
+    response = client.delete('/todos/0')
+    # Now add a new to-do
     client.post('/todos', json={'todo': 'Learn Flask'})
     response = client.get('/todos')
     assert response.status_code == 200
-    assert len(response.json) == 1
+    assert len(response.json) == 1  # Ensure only one item is returned
     assert response.json[0] == 'Learn Flask'
 
 def test_delete_todo(client):
@@ -38,4 +39,3 @@ def test_invalid_todo(client):
     response = client.post('/todos', json={})
     assert response.status_code == 400
     assert response.json['error'] == 'Todo is required'
-

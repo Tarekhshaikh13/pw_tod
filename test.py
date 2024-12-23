@@ -4,7 +4,11 @@ from main import app
 @pytest.fixture
 def client():
     with app.test_client() as client:
+        # Reset the to-do list before each test (optional, depends on your app's logic)
+        app.config['TESTING'] = True
         yield client
+        # Clear to-do list after each test (if necessary)
+        app.todos = []  # Reset the to-do list (this depends on how your app stores it)
 
 def test_add_todo(client):
     response = client.post('/todos', json={'todo': 'Learn Flask'})

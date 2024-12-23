@@ -5,10 +5,10 @@ pipeline {
         // Global environment variables
         APP_NAME = 'my-flask-app'
         DEPLOY_ENV = '10.10.128.2'
-        SSH_CREDS = ''  // Add your SSH credentials here
+        SSH_CREDS = ''
         DOCKER_IMAGE = 'shaikhs9/my-flask-app'  // Change to your Docker Hub image name
-        DOCKER_CREDENTIALS = credentials('docker-username-pass')  // Docker credentials stored in Jenkins
-        GIT_BRANCH = 'main'  // Branch to deploy from
+        DOCKER_CREDENTIALS = credentials('docker-username-pass') 
+        GIT_BRANCH = 'main'
     }
 
     stages {
@@ -23,7 +23,6 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
-                    // Running tests and stopping the pipeline if tests fail
                     def result = sh(script: 'pytest test.py --maxfail=5 --disable-warnings --tb=short', returnStatus: true)
                     if (result != 0) {
                         currentBuild.result = 'FAILURE'
@@ -33,70 +32,68 @@ pipeline {
             }
         }
 
-        // Build Docker Image
+        // Build Docker image
         stage('Build Docker Image') {
             when {
-                branch 'main'  // Only build and deploy from the main branch
+                branch 'main' // Only deploy from the main branch
             }
             steps {
                 script {
-                    // Build Docker image with the tag as BUILD_NUMBER
+                    // Build the Docker image
                     sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} ."
                 }
             }
         }
 
-        // Push Docker Image to Docker Hub
+        // Push Docker image to Docker Hub
         stage('Push to Docker Hub') {
             steps {
                 script {
-                    // Log in to Docker Hub using Jenkins credentials
+                    // Log in to Docker Hub using Docker Hub username and PAT
                     withCredentials([usernamePassword(credentialsId: 'docker-username-pass', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                        // Log in to Docker Hub using the credentials
-                        sh "echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin"
+                        // Log in to Docker using the username (Docker Hub) and PAT (Personal Access Token)
+                        sh "echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin"
                     }
 
-                    // Push the built Docker image to Docker Hub
+                    // Push the image to Docker Hub
                     sh "docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}"
                 }
             }
         }
 
         // SSH and Deploy to Staging Environment
-stage('SSH and Deploy to Staging Environment') {
-    steps {
-        script {
-            // Load SSH private key from Jenkins credentials and deploy to server
-            sshagent(['trex-jenkins']) {
-                sh '''#!/bin/bash
-                # Docker login on staging server
-                ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} "echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin"
-                
-                # Pull the Docker image for the specific build number
-                ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} "docker pull ${DOCKER_IMAGE}:${BUILD_NUMBER}"
-                
-                # Run the Docker container
-                ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} "docker run -d ${DOCKER_IMAGE}:${BUILD_NUMBER}"
-                
-                # Remove old Docker images if BUILD_NUMBER > 2
-                BUILD_NUMBER_MINUS_TWO=\$((BUILD_NUMBER - 2))
-                if [ \${BUILD_NUMBER} -gt 2 ]; then
-                    ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} "docker rmi ${DOCKER_IMAGE}:\${BUILD_NUMBER_MINUS_TWO}"
-                fi
-                '''
+        stage('SSH and Deploy to Staging Environment') {
+            steps {
+                script {
+                    // Load SSH private key from Jenkins credentials and deploy to server
+                    sshagent(['trex-jenkins']) {
+                        sh '''#!/bin/bash
+                        # Docker login on staging server
+                        ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} "echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin"
+                        
+                        # Pull the Docker image for the specific build number
+                        ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} "docker pull ${DOCKER_IMAGE}:${BUILD_NUMBER}"
+                        
+                        # Run the Docker container
+                        ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} "docker run -d ${DOCKER_IMAGE}:${BUILD_NUMBER}"
+                        
+                        # Remove old Docker images if BUILD_NUMBER > 2
+                        BUILD_NUMBER_MINUS_TWO=\$((BUILD_NUMBER - 2))
+                        if [ \${BUILD_NUMBER} -gt 2 ]; then
+                            ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} "docker rmi ${DOCKER_IMAGE}:\${BUILD_NUMBER_MINUS_TWO}"
+                        fi
+                        '''
+                    }
+                }
             }
         }
     }
-}
-
 
     post {
         success {
-            // On successful build and deployment
             echo 'Tests passed and deployment to staging was successful.'
         }
         failure {
-            // On failure in tests or deployment
             echo 'Tests failed or deployment to staging failed.'
         }
         always {

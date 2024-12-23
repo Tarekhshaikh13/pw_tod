@@ -68,22 +68,22 @@ stage('SSH and Deploy to Staging Environment') {
         script {
             // Load SSH private key from Jenkins credentials and deploy to server
             sshagent(['trex-jenkins']) {
-                sh """
+                sh '''#!/bin/bash
                 # Docker login on staging server
-                ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} 'echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin'
+                ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} "echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin"
                 
                 # Pull the Docker image for the specific build number
-                ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} 'docker pull ${DOCKER_IMAGE}:${BUILD_NUMBER}'
+                ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} "docker pull ${DOCKER_IMAGE}:${BUILD_NUMBER}"
                 
                 # Run the Docker container
-                ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} 'docker run -d ${DOCKER_IMAGE}:${BUILD_NUMBER}'
+                ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} "docker run -d ${DOCKER_IMAGE}:${BUILD_NUMBER}"
                 
                 # Remove old Docker images if BUILD_NUMBER > 2
-                BUILD_NUMBER_MINUS_TWO=$((BUILD_NUMBER - 2))
-                if [ ${BUILD_NUMBER} -gt 2 ]; then
-                    ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} 'docker rmi ${DOCKER_IMAGE}:${BUILD_NUMBER_MINUS_TWO}'
+                BUILD_NUMBER_MINUS_TWO=\$((BUILD_NUMBER - 2))
+                if [ \${BUILD_NUMBER} -gt 2 ]; then
+                    ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} "docker rmi ${DOCKER_IMAGE}:\${BUILD_NUMBER_MINUS_TWO}"
                 fi
-                """
+                '''
             }
         }
     }

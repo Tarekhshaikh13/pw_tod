@@ -21,9 +21,37 @@ pipeline {
 
         // Run Tests
         stage('Run Tests') {
+            agent {
+                docker {
+                    image 'python:3.8' // Use Python 3.8 Docker image
+                }
+            }
             steps {
                 script {
-                    def result = sh(script: 'pytest test.py --maxfail=5 --disable-warnings --tb=short', returnStatus: true)
+                    def result = sh(script: '''
+                        # Create a Python virtual environment
+                        python -m venv venv
+
+                        # Activate the virtual environment
+                        source venv/bin/activate
+
+                        # Upgrade pip to the latest version
+                        pip install --upgrade pip
+
+                        # Install required packages from requirements.txt
+                        pip install -r requirements.txt
+
+                        # Run tests and capture the exit code
+                        pytest test.py --maxfail=5 --disable-warnings --tb=short
+                        exit_code=$?
+
+                        # Deactivate the virtual environment
+                        deactivate
+
+                        # Exit with the test result code
+                        exit $exit_code
+                    ''', returnStatus: true)
+
                     if (result != 0) {
                         currentBuild.result = 'FAILURE'
                         error("Test cases failed. Stopping pipeline.")
@@ -31,7 +59,7 @@ pipeline {
                 }
             }
         }
-
+    }
         // Build Docker image
         stage('Build Docker Image') {
             when {

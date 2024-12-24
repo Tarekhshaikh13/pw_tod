@@ -57,6 +57,8 @@ pipeline {
                         error("Test cases failed. Stopping pipeline.")
                     }
                 }
+            }
+        }
 
         // Build Docker image
         stage('Build Docker Image') {
@@ -104,9 +106,9 @@ pipeline {
                         ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} "docker run -d ${DOCKER_IMAGE}:${BUILD_NUMBER}"
                         
                         # Remove old Docker images if BUILD_NUMBER > 2
-                        BUILD_NUMBER_MINUS_TWO=\$((BUILD_NUMBER - 2))
-                        if [ \${BUILD_NUMBER} -gt 2 ]; then
-                            ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} "docker rmi ${DOCKER_IMAGE}:\${BUILD_NUMBER_MINUS_TWO}"
+                        BUILD_NUMBER_MINUS_TWO=$((BUILD_NUMBER - 2))
+                        if [ ${BUILD_NUMBER} -gt 2 ]; then
+                            ssh -o StrictHostKeyChecking=no trex@${DEPLOY_ENV} "docker rmi ${DOCKER_IMAGE}:${BUILD_NUMBER_MINUS_TWO}"
                         fi
                         '''
                     }

@@ -57,9 +57,7 @@ pipeline {
                         error("Test cases failed. Stopping pipeline.")
                     }
                 }
-            }
-        }
-    }
+
         // Build Docker image
         stage('Build Docker Image') {
             when {
